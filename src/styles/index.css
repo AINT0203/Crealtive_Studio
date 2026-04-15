@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --studio-bg: #0d0f14;
+  --studio-surface: #13161d;
+  --studio-border: #1e2330;
+  --studio-text: #f0f2f5;
+  --studio-muted: #8b92a5;
+  --studio-inset: #0d0f14;
+  --studio-elevate: rgba(0, 0, 0, 0.35);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --studio-bg: #eef1f7;
+  --studio-surface: #ffffff;
+  --studio-border: #d4dce8;
+  --studio-text: #121820;
+  --studio-muted: #5c6678;
+  --studio-inset: #e4eaf3;
+  --studio-elevate: rgba(15, 23, 42, 0.1);
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: "DM Sans", ui-sans-serif, system-ui;
+  background: var(--studio-bg);
+  color: var(--studio-text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+::selection {
+  background: rgba(46, 134, 193, 0.35);
+}
+
+.studio-card {
+  background: var(--studio-surface);
+  border: 1px solid var(--studio-border);
+  border-radius: 14px;
+}
+
+.studio-hover-lift {
+  transition:
+    transform 150ms ease,
+    box-shadow 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+.studio-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px var(--studio-elevate);
+}
+
+.studio-focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(46, 134, 193, 0.6);
+}
