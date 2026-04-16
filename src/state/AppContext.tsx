@@ -67,12 +67,15 @@ type AppState = {
   ) => void
   addHistorySession: (payload: {
     status: SessionHistoryEntry['status']
+    projectId?: string
+    projectName?: string
     prompt: string
     modelName: string
     modelId: string
     imageCount: number
     imageSrcs: string[]
     sourceImageSrc?: string
+    sourceImageSrcs?: string[]
   }) => void
   deleteHistorySession: (sessionId: string) => void
 }
@@ -253,23 +256,29 @@ export function AppProvider({ children }: PropsWithChildren) {
   const addHistorySession = useCallback(
     (payload: {
       status: SessionHistoryEntry['status']
+      projectId?: string
+      projectName?: string
       prompt: string
       modelName: string
       modelId: string
       imageCount: number
       imageSrcs: string[]
       sourceImageSrc?: string
+      sourceImageSrcs?: string[]
     }) => {
       const fullEntry: SessionHistoryEntry = {
         id: makeSessionDisplayId(),
         createdAt: Date.now(),
         status: payload.status,
+        ...(payload.projectId ? { projectId: payload.projectId } : {}),
+        ...(payload.projectName ? { projectName: payload.projectName } : {}),
         prompt: payload.prompt,
         modelName: payload.modelName,
         modelId: payload.modelId,
         imageCount: payload.imageCount,
         imageSrcs: payload.imageSrcs,
         ...(payload.sourceImageSrc ? { sourceImageSrc: payload.sourceImageSrc } : {}),
+        ...(payload.sourceImageSrcs?.length ? { sourceImageSrcs: payload.sourceImageSrcs } : {}),
       }
 
       setSessionHistory((prev) => {

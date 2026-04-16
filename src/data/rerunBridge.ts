@@ -6,6 +6,8 @@ export type RerunPayload = {
   modelId: string
   /** Data URL of the original upload, or first result as fallback */
   sourceImageSrc: string | null
+  /** Full upload list for restoring multi-image editor context */
+  sourceImageSrcs?: string[]
 }
 
 export function writeRerunPayload(payload: RerunPayload): string {
@@ -28,8 +30,12 @@ export function readRerunPayload(key: string): RerunPayload | null {
     const prompt = typeof o.prompt === 'string' ? o.prompt : ''
     const modelId = typeof o.modelId === 'string' ? o.modelId : ''
     const src = o.sourceImageSrc
+    const many = o.sourceImageSrcs
     const sourceImageSrc = typeof src === 'string' && src.length > 0 ? src : null
-    return { prompt, modelId, sourceImageSrc }
+    const sourceImageSrcs = Array.isArray(many)
+      ? many.filter((v): v is string => typeof v === 'string' && v.length > 0)
+      : undefined
+    return { prompt, modelId, sourceImageSrc, ...(sourceImageSrcs?.length ? { sourceImageSrcs } : {}) }
   } catch {
     return null
   }

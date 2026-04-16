@@ -24,7 +24,7 @@ export function EmptyState({
             <button
               type="button"
               onClick={onCta}
-              className="studio-focus-ring rounded-xl bg-studio-primary px-4 py-2 text-sm font-semibold text-studio-text shadow-glow hover:bg-studio-secondary"
+              className="studio-focus-ring rounded-xl border border-[#7a0f33]/35 bg-[#7a0f33]/14 px-4 py-2 text-sm font-semibold text-[#7a0f33] shadow-sm transition hover:bg-[#7a0f33]/18"
             >
               {ctaLabel}
             </button>

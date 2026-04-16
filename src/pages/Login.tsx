@@ -45,7 +45,7 @@ export default function Login() {
   return (
     <div className="grid min-h-screen md:grid-cols-2">
       {/* Left — hero image */}
-      <div className="relative isolate min-h-[42vh] overflow-hidden bg-[#1a0a18] md:min-h-screen">
+      <div className="relative isolate min-h-[42vh] overflow-hidden bg-[#1a0a18] md:min-h-0">
         <div
           className="absolute inset-0 bg-cover"
           style={{
@@ -64,7 +64,7 @@ export default function Login() {
           <CreaitiveMark imgClassName="h-10 w-10 object-contain sm:h-11 sm:w-11" />
           <div className="min-w-0">
             <p className="text-lg font-bold tracking-tight text-white drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)] sm:text-xl">
-              CreAItive Studio
+              CREALTIVE STUDIO
             </p>
             <p className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.22em] text-white/85 drop-shadow-[0_1px_8px_rgba(0,0,0,0.75)] sm:text-[11px]">
               Generative workspace
@@ -82,11 +82,15 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right — whitish panel + form */}
-      <div className="flex min-h-[58vh] flex-col justify-center bg-gradient-to-b from-white via-studio-canvas to-[#e8edf4] px-6 py-10 md:min-h-screen md:px-10 lg:px-14">
+      {/* Right — whitish panel + form (maroon accents match Projects / nav) */}
+      <div className="flex min-h-[58vh] flex-col justify-center bg-gradient-to-b from-white via-[#faf7f8] to-[#f0e8ec] px-6 py-10 md:min-h-0 md:px-10 lg:px-14">
         <div className="mx-auto w-full max-w-[380px]">
-          <h1 className="text-2xl font-bold tracking-tight text-studio-ink">Sign in</h1>
-          <p className="mt-1 text-sm text-studio-inkMuted">Use your workspace credentials</p>
+          <h1 className="bg-gradient-to-r from-[#2b0614] via-[#7a0f33] to-[#3a1652] bg-clip-text text-2xl font-bold tracking-tight text-transparent">
+            Sign in
+          </h1>
+          <p className="mt-1 bg-gradient-to-r from-[#2b0614] via-[#7a0f33] to-[#3a1652] bg-clip-text text-sm text-transparent opacity-90">
+            Use your workspace credentials
+          </p>
 
           <form className="mt-8 space-y-4" onSubmit={onSubmit}>
             {error ? (
@@ -105,7 +109,7 @@ export default function Login() {
                 autoComplete="username"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full rounded-xl border border-studio-canvasBorder bg-white px-3 py-3 text-sm text-studio-ink shadow-sm outline-none ring-studio-secondary/20 transition placeholder:text-studio-inkMuted/75 focus:border-studio-secondary focus:ring-2 focus:ring-studio-secondary/30"
+                className="w-full rounded-xl border border-studio-canvasBorder bg-white px-3 py-3 text-sm text-studio-ink shadow-sm outline-none transition placeholder:text-studio-inkMuted/75 focus:border-[#7a0f33]/50 focus:ring-2 focus:ring-[#7a0f33]/25"
                 placeholder={DEMO_EMAIL}
               />
             </label>
@@ -117,14 +121,14 @@ export default function Login() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-xl border border-studio-canvasBorder bg-white px-3 py-3 text-sm text-studio-ink shadow-sm outline-none ring-studio-secondary/20 transition focus:border-studio-secondary focus:ring-2 focus:ring-studio-secondary/30"
+                className="w-full rounded-xl border border-studio-canvasBorder bg-white px-3 py-3 text-sm text-studio-ink shadow-sm outline-none transition focus:border-[#7a0f33]/50 focus:ring-2 focus:ring-[#7a0f33]/25"
                 placeholder="••••••••"
               />
             </label>
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-studio-secondary py-3 text-sm font-bold tracking-wide text-white shadow-md shadow-studio-primary/20 transition hover:bg-studio-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-secondary focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+              className="w-full rounded-xl border border-[#7a0f33]/30 bg-[#7a0f33] py-3 text-sm font-bold tracking-wide text-white shadow-md shadow-[#7a0f33]/25 transition hover:bg-[#5e0c27] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a0f33]/40 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
             >
               Log In
             </button>
@@ -135,7 +139,7 @@ export default function Login() {
               <div className="w-full border-t border-studio-canvasBorder" />
             </div>
             <div className="relative flex justify-center">
-              <span className="bg-gradient-to-b from-white to-studio-canvas px-3 text-xs font-medium text-studio-inkMuted">
+              <span className="bg-gradient-to-b from-white to-[#faf7f8] px-3 text-xs font-medium text-[#7a0f33]/70">
                 or
               </span>
             </div>
@@ -144,7 +148,7 @@ export default function Login() {
           <button
             type="button"
             onClick={onSsoClick}
-            className="w-full rounded-xl border border-studio-canvasBorderStrong bg-white/80 py-3 text-sm font-semibold text-studio-ink shadow-sm transition hover:border-studio-secondary/40 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-studio-secondary/35 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
+            className="w-full rounded-xl border border-[#7a0f33]/25 bg-white/90 py-3 text-sm font-semibold text-[#4a1524] shadow-sm transition hover:border-[#7a0f33]/45 hover:bg-white focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7a0f33]/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white"
           >
             Sign in with SSO
           </button>

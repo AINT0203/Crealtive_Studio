@@ -25,6 +25,7 @@ export async function requestGenerate(
     image: File
     prompt: string
     numImages: number
+    modelId: string
     geminiModelId?: string
     signal?: AbortSignal
   },
@@ -33,6 +34,7 @@ export async function requestGenerate(
   fd.append('image', input.image)
   fd.append('prompt', input.prompt)
   fd.append('num_images', String(input.numImages))
+  fd.append('provider_id', input.modelId)
   if (input.geminiModelId) fd.append('model', input.geminiModelId)
 
   const url = `${apiRoot()}/api/generate`

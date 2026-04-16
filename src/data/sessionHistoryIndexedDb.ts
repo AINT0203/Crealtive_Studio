@@ -73,7 +73,7 @@ function slimNewestImages(entries: SessionHistoryEntry[]): SessionHistoryEntry[]
 function stripNewestSource(entries: SessionHistoryEntry[]): SessionHistoryEntry[] {
   const [h, ...t] = entries
   if (!h) return entries
-  const { sourceImageSrc: _removed, ...rest } = h
+  const { sourceImageSrc: _removed, sourceImageSrcs: _removedMany, ...rest } = h
   return [rest as SessionHistoryEntry, ...t]
 }
 

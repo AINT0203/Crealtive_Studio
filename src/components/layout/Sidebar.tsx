@@ -12,7 +12,7 @@ function Logo() {
         <div className="text-sm font-semibold tracking-wide text-studio-secondary">
           Affine Analytics
         </div>
-        <div className="text-[11px] text-studio-muted">CreAItive Studio workspace</div>
+        <div className="text-[11px] text-studio-muted">CREALTIVE STUDIO workspace</div>
       </div>
     </div>
   )
@@ -67,7 +67,6 @@ export function Sidebar() {
       <nav className="px-2 pt-2">
         <div className="space-y-1">
           <NavItem to="/projects" icon="📁" label="Projects" />
-          <NavItem to="/editor" icon="🎨" label="Editor" />
           <NavItem to="/history" icon="📜" label="History" />
         </div>
       </nav>
@@ -128,7 +127,7 @@ export function Sidebar() {
         </button>
 
         <div className="mt-3 text-[10px] leading-relaxed text-studio-muted">
-          Affine Analytics — CreAItive Studio v1.0
+          Affine Analytics — CREALTIVE STUDIO v1.0
         </div>
       </div>
     </aside>

@@ -3,6 +3,8 @@ export const MAX_SESSION_HISTORY = 40
 
 export type SessionHistoryEntry = {
   id: string
+  projectId?: string
+  projectName?: string
   createdAt: number
   status: 'success' | 'error'
   prompt: string
@@ -13,6 +15,8 @@ export type SessionHistoryEntry = {
   imageSrcs: string[]
   /** Original upload used for this run (data URL); enables Re-run in Editor */
   sourceImageSrc?: string
+  /** All uploads present in Editor during that run (for restoring multi-input context) */
+  sourceImageSrcs?: string[]
 }
 
 function isRecord(x: unknown): x is Record<string, unknown> {
@@ -23,6 +27,8 @@ function parseEntry(x: unknown): SessionHistoryEntry | null {
   if (!isRecord(x)) return null
   const id = x.id
   const createdAt = x.createdAt
+  const projectName = x.projectName
+  const projectId = x.projectId
   const status = x.status
   const prompt = x.prompt
   const modelName = x.modelName
@@ -30,6 +36,7 @@ function parseEntry(x: unknown): SessionHistoryEntry | null {
   const imageCount = x.imageCount
   const imageSrcs = x.imageSrcs
   const sourceImageSrc = x.sourceImageSrc
+  const sourceImageSrcs = x.sourceImageSrcs
   if (typeof id !== 'string' || typeof createdAt !== 'number') return null
   if (status !== 'success' && status !== 'error') return null
   if (typeof prompt !== 'string' || typeof modelName !== 'string' || typeof modelId !== 'string') return null
@@ -45,8 +52,18 @@ function parseEntry(x: unknown): SessionHistoryEntry | null {
     imageCount,
     imageSrcs,
   }
+  if (typeof projectId === 'string' && projectId.trim().length > 0) {
+    out.projectId = projectId.trim()
+  }
+  if (typeof projectName === 'string' && projectName.trim().length > 0) {
+    out.projectName = projectName.trim()
+  }
   if (typeof sourceImageSrc === 'string' && sourceImageSrc.length > 0) {
     out.sourceImageSrc = sourceImageSrc
+  }
+  if (Array.isArray(sourceImageSrcs)) {
+    const cleaned = sourceImageSrcs.filter((s): s is string => typeof s === 'string' && s.length > 0)
+    if (cleaned.length > 0) out.sourceImageSrcs = cleaned
   }
   return out
 }
