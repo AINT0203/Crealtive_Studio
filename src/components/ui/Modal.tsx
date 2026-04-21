@@ -6,6 +6,7 @@ export function Modal({
   title,
   onClose,
   footer,
+  headerRight,
   children,
   wide,
 }: PropsWithChildren<{
@@ -13,6 +14,7 @@ export function Modal({
   title: string
   onClose: () => void
   footer?: ReactNode
+  headerRight?: ReactNode
   /** Wider panel for galleries / detail */
   wide?: boolean
 }>) {
@@ -44,13 +46,21 @@ export function Modal({
       >
         <div className="flex items-start justify-between border-b border-studio-border px-5 py-4">
           <div className="text-sm font-semibold text-studio-text">{title}</div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-md px-2 py-1 text-xs text-studio-muted hover:bg-studio-secondary/12 hover:text-studio-text"
-          >
-            Close
-          </button>
+          <div className="flex items-center gap-2">
+            {headerRight}
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close"
+              title="Close"
+              className="studio-focus-ring rounded-md border border-red-200 px-2 py-1 text-red-600 hover:bg-red-50 hover:text-red-700"
+            >
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M6 6 18 18" />
+                <path d="M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
         </div>
         <div className="px-5 py-4">{children}</div>
         {footer ? (

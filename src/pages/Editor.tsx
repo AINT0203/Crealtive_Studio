@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+  import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { AppHeader } from '../components/layout/AppHeader'
 import { TopBar } from '../components/layout/TopBar'
@@ -122,6 +122,49 @@ const RESOLUTION_OPTIONS = [
 ] as const
 type ResolutionId = (typeof RESOLUTION_OPTIONS)[number]['id']
 
+const STYLE_GROUPS = [
+  { id: 'lighting', label: 'Lighting', options: ['Low Lighting', 'Studio Lighting', 'Dynamic Lighting', 'Back Lighting'] },
+  { id: 'cameraAngle', label: 'Camera Angle', options: ['Close Up', 'Wide Angle', 'Macro', 'Blurry Backdrop'] },
+  { id: 'colorTone', label: 'Color & Tone', options: ['Black & White', 'Warm Tone', 'Cool Tone', 'Vibrant Tone'] },
+  { id: 'sceneOfDay', label: 'Scene of the Day', options: ['Morning', 'Evening', 'Sunny', 'Night'] },
+] as const
+
+type StyleGroupId = (typeof STYLE_GROUPS)[number]['id']
+type StyleSelections = Record<StyleGroupId, string>
+
+const DEFAULT_STYLE_SELECTIONS: StyleSelections = {
+  lighting: '',
+  cameraAngle: '',
+  colorTone: '',
+  sceneOfDay: '',
+}
+
+const STYLE_DIRECTIVES_PREFIX = 'Style directives:'
+
+function styleDirectivesSuffix(styles: StyleSelections): string {
+  const items = [
+    styles.lighting ? `Lighting: ${styles.lighting}` : null,
+    styles.cameraAngle ? `Camera Angle: ${styles.cameraAngle}` : null,
+    styles.colorTone ? `Color & Tone: ${styles.colorTone}` : null,
+    styles.sceneOfDay ? `Scene of the Day: ${styles.sceneOfDay}` : null,
+  ].filter((x): x is string => Boolean(x))
+  return items.join('; ')
+}
+
+function stripStyleDirectives(promptText: string): string {
+  const lines = promptText.split('\n')
+  const kept = lines.filter((line) => !line.trimStart().startsWith(STYLE_DIRECTIVES_PREFIX))
+  return kept.join('\n').replace(/\s+$/, '')
+}
+
+function withStyleDirectives(promptText: string, styles: StyleSelections): string {
+  const base = stripStyleDirectives(promptText).trim()
+  const suffix = styleDirectivesSuffix(styles)
+  if (!suffix) return base
+  if (!base) return `${STYLE_DIRECTIVES_PREFIX} ${suffix}`
+  return `${base}\n\n${STYLE_DIRECTIVES_PREFIX} ${suffix}`
+}
+
 function loadSourceLibrary(): SourceLibraryItem[] {
   try {
     const raw = localStorage.getItem(SOURCE_LIBRARY_KEY)
@@ -216,6 +259,7 @@ export function Editor() {
   const [modelId, setModelId] = useState('gemini-flash')
   const [count, setCount] = useState<1 | 2 | 3 | 4>(2)
   const [resolutionId, setResolutionId] = useState<ResolutionId>('full-hd')
+  const [styleSelections, setStyleSelections] = useState<StyleSelections>(DEFAULT_STYLE_SELECTIONS)
 
   const [attemptedGenerate, setAttemptedGenerate] = useState(false)
 
@@ -527,29 +571,21 @@ export function Editor() {
     }
   }
 
-  function onSaveResult(resultId: string) {
-    if (!selectedProjectId) {
-      addToast({
-        variant: 'error',
-        title: 'Select a project before saving',
-        message: 'Pick a project in the dropdown at the top of the editor.',
-      })
+  async function onEditResult(resultId: string) {
+    const result = results.find((r) => r.id === resultId)
+    if (!result) return
+    const blob = dataUrlToBlob(result.imageSrc)
+    if (!blob) {
+      addToast({ variant: 'error', title: 'Could not load result for editing' })
       return
     }
-    const existing = results.find((r) => r.id === resultId)
-    if (existing?.savedToProjectId) {
-      addToast({
-        variant: 'info',
-        title: 'Already saved',
-        message: 'This result is already linked to a project.',
-      })
-      return
-    }
-    setResults((prev) =>
-      prev.map((r) => (r.id === resultId ? { ...r, savedToProjectId: selectedProjectId } : r)),
-    )
-    applyProjectUsage(selectedProjectId, { images: 1 })
-    addToast({ variant: 'success', title: 'Saved to project' })
+    const ext = blob.type === 'image/jpeg' ? 'jpg' : blob.type === 'image/webp' ? 'webp' : 'png'
+    const file = new File([blob], `result-edit-${result.id}.${ext}`, { type: blob.type || 'image/png' })
+    const nextUpload: UploadedImage = { file, previewUrl: result.imageSrc }
+    setUploadSourceMode('new')
+    setNewUploads((prev) => upsertUpload(prev, nextUpload))
+    setUploaded(nextUpload)
+    addToast({ variant: 'success', title: 'Result loaded into upload for editing' })
   }
 
   async function onDownloadResult(resultId: string, format: 'jpeg' | 'jpg' | 'png' | 'svg' | 'gif' = 'png') {
@@ -617,37 +653,125 @@ export function Editor() {
 
       <div className="grid overflow-hidden rounded-2xl border border-studio-border bg-studio-surface grid-cols-[minmax(0,52fr)_minmax(0,48fr)] max-[1024px]:grid-cols-1">
         {/* LEFT */}
-        <div className="space-y-4 p-4 max-[1024px]:border-b max-[1024px]:border-studio-border">
-          <div className="studio-card p-4">
+        <div className="max-h-[calc(100vh-13.5rem)] space-y-4 overflow-y-auto p-4 pr-2 max-[1024px]:max-h-none max-[1024px]:overflow-visible max-[1024px]:border-b max-[1024px]:border-studio-border">
+          <div>
             <div className="text-sm font-semibold text-studio-text">Uploads</div>
             <div className="mt-3 space-y-3">
-              <div className="rounded-xl border border-studio-border/70 bg-studio-bg/50 p-3">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/jpg"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  if (!e.target.files?.length) return
+                  void addNewFiles(e.target.files)
+                  e.currentTarget.value = ''
+                }}
+              />
+
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUploadSourceMode('new')
+                    fileInputRef.current?.click()
+                  }}
+                  className={[
+                    'studio-focus-ring group flex h-28 w-full flex-col items-center justify-center rounded-xl border px-4 text-center transition',
+                    uploadSourceMode === 'new'
+                      ? 'border-[#7a0f33]/50 bg-[#7a0f33]/16 ring-1 ring-[#7a0f33]/25'
+                      : 'border-studio-border bg-studio-surface hover:border-[#7a0f33]/30 hover:bg-[#7a0f33]/8',
+                  ].join(' ')}
+                >
+                  <div
+                    className={[
+                      'mb-2 rounded-xl px-3 py-2 text-[#7a0f33] transition',
+                      uploadSourceMode === 'new' ? 'bg-[#7a0f33]/15' : 'bg-studio-secondary/8 group-hover:bg-[#7a0f33]/12',
+                    ].join(' ')}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 16V4" />
+                      <path d="m7 9 5-5 5 5" />
+                      <path d="M20 16v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3" />
+                    </svg>
+                  </div>
+                  <div
+                    className={[
+                      'text-lg font-semibold leading-none',
+                      uploadSourceMode === 'new' ? 'text-[#7a0f33]' : 'text-studio-text',
+                    ].join(' ')}
+                  >
+                    Upload
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setUploadSourceMode('existing')}
+                  disabled={!selectedProjectId}
+                  className={[
+                    'studio-focus-ring group flex h-28 w-full flex-col items-center justify-center rounded-xl border px-4 text-center transition',
+                    uploadSourceMode === 'existing'
+                      ? 'border-[#7a0f33]/60 bg-transparent text-[#7a0f33] ring-1 ring-[#7a0f33]/30'
+                      : 'border-studio-border bg-transparent text-studio-muted hover:border-[#7a0f33]/30',
+                    !selectedProjectId ? 'cursor-not-allowed opacity-50' : '',
+                  ].join(' ')}
+                >
+                  <div
+                    className={[
+                      'mb-2 rounded-xl p-2 text-[#7a0f33] transition',
+                      uploadSourceMode === 'existing' ? 'bg-[#7a0f33]/12' : 'bg-studio-secondary/8 group-hover:bg-[#7a0f33]/12',
+                    ].join(' ')}
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+                      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+                      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+                    </svg>
+                  </div>
+                  <div
+                    className={[
+                      'text-sm font-semibold leading-none',
+                      uploadSourceMode === 'existing' ? 'text-[#7a0f33]' : 'text-studio-text',
+                    ].join(' ')}
+                  >
+                    Select from Library
+                  </div>
+                  {!selectedProjectId ? (
+                    <div
+                      className={[
+                        'mt-2 text-xs',
+                        uploadSourceMode === 'existing' ? 'text-[#7a0f33]/80' : 'text-studio-muted',
+                      ].join(' ')}
+                    >
+                      Select a project first
+                    </div>
+                  ) : null}
+                </button>
+              </div>
+              {uploadSourceMode === 'existing' && !selectedProjectId ? (
+                <div className="text-xs text-studio-muted">Select a project to view existing images.</div>
+              ) : null}
+              <div>
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   <div>
-                    <label className="text-[11px] font-semibold uppercase tracking-wide text-studio-muted">Model</label>
-                    <div className="mt-1 flex items-center gap-1">
+                    <label htmlFor="model-select" className="text-[11px] font-semibold uppercase tracking-wide text-studio-muted">
+                      Model
+                    </label>
+                    <select
+                      id="model-select"
+                      value={modelId}
+                      onChange={(e) => setModelId(e.target.value)}
+                      className="studio-focus-ring mt-1 w-full rounded-md border border-studio-border bg-studio-bg px-2 py-1 text-xs text-studio-text"
+                    >
                       {editorModels.map((m) => (
-                        <label
-                          key={m.id}
-                          className={[
-                            'studio-focus-ring inline-flex cursor-pointer items-center gap-1 rounded-md border px-2 py-1 text-xs font-semibold',
-                            modelId === m.id
-                              ? 'border-[#7a0f33] bg-[#7a0f33]/12 text-[#7a0f33]'
-                              : 'border-studio-border text-studio-muted hover:bg-studio-secondary/8',
-                          ].join(' ')}
-                        >
-                          <input
-                            type="radio"
-                            name="model"
-                            value={m.id}
-                            checked={modelId === m.id}
-                            onChange={() => setModelId(m.id)}
-                            className="h-3 w-3 accent-[#7a0f33]"
-                          />
-                          <span>{m.name}</span>
-                        </label>
+                        <option key={m.id} value={m.id}>
+                          {m.name}
+                        </option>
                       ))}
-                    </div>
+                    </select>
                   </div>
                   <div>
                     <label htmlFor="count-select" className="text-[11px] font-semibold uppercase tracking-wide text-studio-muted">
@@ -687,73 +811,6 @@ export function Editor() {
                   </div>
                 </div>
               </div>
-
-              <div className="rounded-xl border border-studio-border/70 bg-studio-bg/50 p-2">
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setUploadSourceMode('new')}
-                    className={[
-                      'studio-focus-ring rounded-md px-3 py-1 text-xs font-semibold',
-                      uploadSourceMode === 'new'
-                        ? 'bg-[#7a0f33] text-white'
-                        : 'border border-studio-border text-studio-muted hover:bg-studio-secondary/10',
-                    ].join(' ')}
-                  >
-                    New Upload
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setUploadSourceMode('existing')}
-                    disabled={!selectedProjectId}
-                    className={[
-                      'studio-focus-ring rounded-md px-3 py-1 text-xs font-semibold',
-                      uploadSourceMode === 'existing'
-                        ? 'bg-[#7a0f33] text-white'
-                        : 'border border-studio-border text-studio-muted hover:bg-studio-secondary/10',
-                      !selectedProjectId ? 'cursor-not-allowed opacity-50' : '',
-                    ].join(' ')}
-                  >
-                    Existing Image
-                  </button>
-                </div>
-                {uploadSourceMode === 'existing' && !selectedProjectId ? (
-                  <div className="mt-2 text-xs text-studio-muted">Select a project to view existing images.</div>
-                ) : null}
-              </div>
-
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/jpg"
-                multiple
-                className="hidden"
-                onChange={(e) => {
-                  if (!e.target.files?.length) return
-                  void addNewFiles(e.target.files)
-                  e.currentTarget.value = ''
-                }}
-              />
-
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploadSourceMode !== 'new'}
-                className="studio-focus-ring flex w-full flex-col items-center justify-center rounded-2xl border border-[#7a0f33]/25 bg-[#7a0f33]/5 px-4 py-8 text-center hover:bg-[#7a0f33]/10"
-              >
-                <div className="mb-3 rounded-2xl bg-[#7a0f33]/15 px-4 py-3 text-[#7a0f33]">
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M12 16V4" />
-                    <path d="m7 9 5-5 5 5" />
-                    <path d="M20 16v3a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-3" />
-                  </svg>
-                </div>
-                <div className="text-[28px] font-semibold leading-none text-studio-text">Upload Image</div>
-              </button>
-
-              {uploadSourceMode === 'new' ? (
-                <div className="text-xs text-studio-muted">Select multiple PNG/JPG/JPEG images</div>
-              ) : null}
 
               {uploadSourceMode === 'existing' ? (
                 <div className="space-y-2">
@@ -824,7 +881,7 @@ export function Editor() {
             </div>
           </div>
 
-          <div className="studio-card p-4">
+          <div>
             <div className="flex items-end justify-between gap-4">
               <div>
                 <div className="text-sm font-semibold text-studio-text">Input Prompt</div>
@@ -843,6 +900,56 @@ export function Editor() {
               className="studio-focus-ring mt-3 w-full resize-none rounded-xl border border-studio-border bg-studio-bg px-3 py-2 text-sm text-studio-text placeholder:text-studio-muted/60"
             />
 
+            <div className="mt-3 space-y-3 rounded-xl border border-studio-border bg-studio-bg/40 p-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-studio-text">Image Styles</div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setStyleSelections(DEFAULT_STYLE_SELECTIONS)
+                    setPrompt((prev) => withStyleDirectives(prev, DEFAULT_STYLE_SELECTIONS))
+                  }}
+                  className="studio-focus-ring inline-flex items-center gap-1 rounded-md border border-studio-border bg-studio-surface px-2 py-1 text-xs font-semibold text-studio-muted hover:bg-studio-secondary/8 hover:text-studio-text"
+                >
+                  ↻ Redo
+                </button>
+              </div>
+
+              {STYLE_GROUPS.map((group) => (
+                <div key={group.id}>
+                  <div className="text-[11px] font-semibold uppercase tracking-wide text-studio-muted">{group.label}</div>
+                  <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    {group.options.map((option) => {
+                      const active = styleSelections[group.id] === option
+                      return (
+                        <button
+                          key={`${group.id}-${option}`}
+                          type="button"
+                          onClick={() => {
+                            const nextValue = styleSelections[group.id] === option ? '' : option
+                            const nextStyles = {
+                              ...styleSelections,
+                              [group.id]: nextValue,
+                            }
+                            setStyleSelections(nextStyles)
+                            setPrompt((prev) => withStyleDirectives(prev, nextStyles))
+                          }}
+                          className={[
+                            'studio-focus-ring rounded-md border px-3 py-2 text-xs font-semibold transition',
+                            active
+                              ? 'border-[#7a0f33]/45 bg-[#7a0f33]/14 text-[#7a0f33]'
+                              : 'border-studio-border bg-studio-surface text-studio-muted hover:bg-studio-secondary/8 hover:text-studio-text',
+                          ].join(' ')}
+                        >
+                          {option}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="mt-3 font-mono text-xs text-studio-muted">
               Estimated cost: ⚡ {estimatedCost.toLocaleString()} credits
             </div>
@@ -853,7 +960,7 @@ export function Editor() {
               disabled={!canGenerate() || phase === 'generating'}
               className="studio-focus-ring mt-3 inline-flex h-10 items-center justify-center rounded-lg bg-[#7a0f33] px-4 text-xs font-semibold text-white shadow-sm transition hover:bg-[#5e0c27] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              ✨ Generate Images
+               ⚡GENERATE
             </button>
             {attemptedGenerate && !prompt.trim() ? (
               <div className="mt-2 text-xs font-semibold text-studio-danger">
@@ -864,7 +971,7 @@ export function Editor() {
         </div>
 
         {/* RIGHT */}
-        <div className="border-l border-studio-border p-4 max-[1024px]:border-l-0">
+        <div className="flex min-h-[calc(100vh-13.5rem)] flex-col border-l border-studio-border p-4 max-[1024px]:min-h-0 max-[1024px]:border-l-0">
           <div className="flex items-center justify-between gap-3">
             <div className="text-sm font-semibold text-studio-text">Results</div>
             {phase === 'generating' ? (
@@ -879,8 +986,8 @@ export function Editor() {
           </div>
 
           {phase === 'idle' ? (
-            <div className="mt-4">
-              <div className="animate-pulseSoft">
+            <div className="mt-4 flex-1">
+              <div className="h-full animate-pulseSoft">
                 <EmptyState
                   icon="🪄"
                   title="Your generated images will appear here"
@@ -947,7 +1054,7 @@ export function Editor() {
             <div className="mt-4 space-y-4">
               <GenerationResultGrid
                 results={results}
-                onSave={onSaveResult}
+                onEdit={onEditResult}
                 onDownload={onDownloadResult}
                 onExpand={(id) => setExpandedId(id)}
               />
@@ -1000,6 +1107,42 @@ export function Editor() {
           setExpandedId(null)
           setExpandedDownloadOpen(false)
         }}
+        headerRight={
+          expanded ? (
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setExpandedDownloadOpen((prev) => !prev)}
+                className="studio-focus-ring rounded-md border border-studio-border px-2 py-1 text-studio-muted hover:bg-studio-secondary/12 hover:text-studio-text"
+                title="Download"
+                aria-label="Download"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 3v11" />
+                  <path d="m7 10 5 5 5-5" />
+                  <path d="M4 20h16" />
+                </svg>
+              </button>
+              {expandedDownloadOpen ? (
+                <div className="absolute right-0 top-full z-20 mt-2 w-32 rounded-lg border border-studio-border bg-white p-1 shadow-lg">
+                  {(['jpeg', 'jpg', 'png', 'svg', 'gif'] as const).map((fmt) => (
+                    <button
+                      key={fmt}
+                      type="button"
+                      onClick={() => {
+                        void onDownloadResult(expanded.id, fmt)
+                        setExpandedDownloadOpen(false)
+                      }}
+                      className="studio-focus-ring w-full rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wide text-studio-text hover:bg-studio-secondary/12"
+                    >
+                      {fmt}
+                    </button>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+          ) : null
+        }
         footer={
           expanded ? (
             <div className="flex items-center justify-between gap-3">
@@ -1010,35 +1153,14 @@ export function Editor() {
               <div className="relative flex items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => onSaveResult(expanded.id)}
+                  onClick={() => {
+                    void onEditResult(expanded.id)
+                    setExpandedId(null)
+                  }}
                   className="studio-focus-ring rounded-lg bg-[#7a0f33] px-3 py-2 text-sm font-semibold text-white hover:bg-[#5e0c27]"
                 >
-                  💾 Save
+                  ✏ Edit
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setExpandedDownloadOpen((prev) => !prev)}
-                  className="studio-focus-ring rounded-lg border border-[#7a0f33] bg-[#7a0f33]/10 px-3 py-2 text-sm font-semibold text-[#7a0f33] hover:bg-[#7a0f33]/18"
-                >
-                  ⬇ Download
-                </button>
-                {expandedDownloadOpen ? (
-                  <div className="absolute bottom-full right-0 z-20 mb-2 w-32 rounded-lg border border-studio-border bg-white p-1 shadow-lg">
-                    {(['jpeg', 'jpg', 'png', 'svg', 'gif'] as const).map((fmt) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        onClick={() => {
-                          void onDownloadResult(expanded.id, fmt)
-                          setExpandedDownloadOpen(false)
-                        }}
-                        className="studio-focus-ring w-full rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wide text-studio-text hover:bg-studio-secondary/12"
-                      >
-                        {fmt}
-                      </button>
-                    ))}
-                  </div>
-                ) : null}
               </div>
             </div>
           ) : null
@@ -1046,7 +1168,7 @@ export function Editor() {
       >
         {expanded ? (
           <div className="space-y-3">
-            <div className="h-[420px] w-full overflow-hidden rounded-xl border border-studio-border bg-studio-inset">
+            <div className="relative mx-auto h-[340px] w-full max-w-[640px] overflow-hidden rounded-xl border border-studio-border bg-studio-inset">
               <img
                 src={expanded.imageSrc}
                 alt={expanded.label}

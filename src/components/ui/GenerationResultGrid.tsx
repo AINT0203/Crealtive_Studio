@@ -12,12 +12,12 @@ export type GeneratedResult = {
 
 export function GenerationResultGrid({
   results,
-  onSave,
+  onEdit,
   onDownload,
   onExpand,
 }: {
   results: GeneratedResult[]
-  onSave: (id: string) => void
+  onEdit: (id: string) => void
   onDownload: (id: string, format: 'jpeg' | 'jpg' | 'png' | 'svg' | 'gif') => void
   onExpand: (id: string) => void
 }) {
@@ -45,11 +45,6 @@ export function GenerationResultGrid({
           <div className="flex items-center justify-between gap-2 border-t border-studio-border px-3 py-2">
             <div className="text-xs font-semibold text-studio-text">{r.label}</div>
             <div className="relative flex items-center gap-2">
-              {r.savedToProjectId ? (
-                <span className="rounded-full border border-studio-success/40 bg-[#27AE6014] px-2 py-0.5 text-[10px] font-semibold text-studio-success">
-                  Saved
-                </span>
-              ) : null}
               <button
                 type="button"
                 title="Download"
@@ -79,15 +74,14 @@ export function GenerationResultGrid({
               ) : null}
               <button
                 type="button"
-                title="Save"
-                aria-label="Save"
-                onClick={() => onSave(r.id)}
+                title="Edit"
+                aria-label="Edit"
+                onClick={() => onEdit(r.id)}
                 className="studio-focus-ring rounded-lg border border-black/20 bg-white px-2 py-1 text-black shadow-sm transition hover:bg-black/5"
               >
                 <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M5 4h12l2 2v14H5z" />
-                  <path d="M8 4v6h8V4" />
-                  <path d="M8 20v-6h8v6" />
+                  <path d="M12 20h9" />
+                  <path d="m16.5 3.5 4 4L7 21l-4 1 1-4z" />
                 </svg>
               </button>
               <button

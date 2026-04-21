@@ -12,7 +12,7 @@ export function EmptyState({
   onCta?: () => void
 }) {
   return (
-    <div className="studio-card grid min-h-[340px] place-items-center p-8 text-center">
+    <div className="studio-card grid h-full min-h-[340px] place-items-center p-8 text-center">
       <div className="max-w-[520px]">
         <div className="mx-auto grid h-12 w-12 place-items-center rounded-2xl border border-studio-border bg-studio-secondary/12 text-2xl">
           {icon}

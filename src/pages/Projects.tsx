@@ -77,7 +77,16 @@ export function Projects() {
               {projects.map((p) => (
                 <div
                   key={p.id}
-                  className="studio-card studio-hover-lift group relative overflow-hidden p-3"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/editor?projectId=${encodeURIComponent(p.id)}`)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault()
+                      navigate(`/editor?projectId=${encodeURIComponent(p.id)}`)
+                    }
+                  }}
+                  className="studio-card studio-hover-lift group relative cursor-pointer overflow-hidden p-3"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -96,7 +105,11 @@ export function Projects() {
                         <Badge variant="neutral">Archived</Badge>
                       )}
 
-                      <details className="group relative">
+                      <details
+                        className="group relative"
+                        onClick={(e) => e.stopPropagation()}
+                        onKeyDown={(e) => e.stopPropagation()}
+                      >
                         <summary className="studio-focus-ring list-none cursor-pointer rounded-md p-1 text-black/70 transition hover:bg-black/5 hover:text-black">
                           <span className="sr-only">More</span>
                           <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
@@ -137,23 +150,6 @@ export function Projects() {
                     </span>
                   </div>
 
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/editor?projectId=${encodeURIComponent(p.id)}`)}
-                      className="studio-focus-ring rounded-lg bg-[#7a0f33] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-[#5e0c27]"
-                    >
-                      Open
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => navigate(`/history?projectId=${encodeURIComponent(p.id)}`)}
-                      className="rounded-lg border border-[#7a0f33] bg-transparent px-3 py-1.5 text-xs font-semibold text-[#7a0f33] transition hover:bg-[#7a0f3312]"
-                    >
-                      History
-                    </button>
-                  </div>
                 </div>
               ))}
             </div>
