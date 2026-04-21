@@ -1,5 +1,6 @@
 import type { PropsWithChildren, ReactNode } from 'react'
 import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 export function Modal({
   open,
@@ -27,9 +28,17 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
-  if (!open) return null
+  useEffect(() => {
+    if (!open) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      document.body.style.overflow = prev
+    }
+  }, [open])
 
-  return (
+  if (!open) return null
+  return createPortal(
     <div
       className="fixed inset-0 z-40 grid place-items-center bg-black/55 p-4"
       onMouseDown={(e) => {
@@ -67,7 +76,8 @@ export function Modal({
           <div className="border-t border-studio-border px-5 py-4">{footer}</div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

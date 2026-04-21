@@ -56,6 +56,7 @@ type AppState = {
   toasts: ToastItem[]
   sessionHistory: SessionHistoryEntry[]
   createProject: (input: { name: string; description: string }) => void
+  renameProject: (projectId: string, nextName: string) => void
   deleteProject: (projectId: string) => Promise<void>
   addToast: (toast: Omit<ToastItem, 'id' | 'createdAt'>) => void
   dismissToast: (toastId: string) => void
@@ -189,6 +190,98 @@ export function AppProvider({ children }: PropsWithChildren) {
             title: 'Project created successfully',
           }),
         )
+        return next
+      })
+    },
+    [addToast],
+  )
+
+  const renameProject = useCallback(
+    (projectId: string, nextName: string) => {
+      const trimmedName = nextName.trim()
+      if (trimmedName.length < 2) {
+        addToast({
+          variant: 'error',
+          title: 'Project name is too short',
+          message: 'Use at least 2 characters.',
+        })
+        return
+      }
+
+      let oldName: string | null = null
+      let didRename = false
+
+      setProjects((prev) => {
+        const idx = prev.findIndex((p) => p.id === projectId)
+        if (idx === -1) return prev
+        const current = prev[idx]!
+        oldName = current.name
+
+        if (current.name === trimmedName) return prev
+
+        const nameKey = trimmedName.toLowerCase()
+        if (prev.some((p) => p.id !== projectId && p.name.trim().toLowerCase() === nameKey)) {
+          queueMicrotask(() =>
+            addToast({
+              variant: 'error',
+              title: 'Project name already exists',
+              message: 'Choose a different name to keep projects unique.',
+            }),
+          )
+          return prev
+        }
+
+        const next = [...prev]
+        next[idx] = {
+          ...current,
+          name: trimmedName,
+          updated: localCalendarDateISO(),
+        }
+        if (!persistProjects(next)) {
+          queueMicrotask(() =>
+            addToast({
+              variant: 'error',
+              title: 'Could not rename project',
+              message: 'Browser storage may be full or unavailable.',
+            }),
+          )
+          return prev
+        }
+        didRename = true
+        queueMicrotask(() => addToast({ variant: 'success', title: 'Project renamed' }))
+        return next
+      })
+
+      if (!didRename || !oldName) return
+      const previousName = oldName
+      const previousNameKey = previousName.trim().toLowerCase()
+
+      setSessionHistory((prev) => {
+        let changed = false
+        const next = prev.map((entry) => {
+          const matchesProjectId = entry.projectId === projectId
+          const matchesLegacyName =
+            !entry.projectId &&
+            typeof entry.projectName === 'string' &&
+            entry.projectName.trim().toLowerCase() === previousNameKey
+          if (!matchesProjectId && !matchesLegacyName) return entry
+          changed = true
+          return { ...entry, projectName: trimmedName }
+        })
+        if (!changed) return prev
+
+        queueMicrotask(() => {
+          void saveSessionHistoryDurable(next).then(({ mode }) => {
+            if (mode === 'failed') {
+              addToast({
+                variant: 'error',
+                title: 'Renamed project but history was not saved',
+                message: 'Refresh the page to reload stored history.',
+              })
+            }
+          })
+        })
+
         return next
       })
     },
@@ -348,6 +441,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       toasts,
       sessionHistory,
       createProject,
+      renameProject,
       deleteProject,
       addToast,
       dismissToast,
@@ -364,6 +458,7 @@ export function AppProvider({ children }: PropsWithChildren) {
       toasts,
       sessionHistory,
       createProject,
+      renameProject,
       deleteProject,
       addToast,
       dismissToast,

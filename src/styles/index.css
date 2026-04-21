@@ -41,6 +41,16 @@ body {
   box-sizing: border-box;
 }
 
+/* Keep scrolling functional everywhere, but hide scrollbar chrome globally. */
+* {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+*::-webkit-scrollbar {
+  display: none;
+}
+
 ::selection {
   background: rgba(46, 134, 193, 0.35);
 }
@@ -67,4 +77,13 @@ body {
 .studio-focus-ring:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(46, 134, 193, 0.6);
+}
+
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
 }

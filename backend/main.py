@@ -8,7 +8,7 @@ import time
 import asyncio
 import concurrent.futures
 from pathlib import Path
-from typing import Sequence
+from typing import Annotated, Sequence
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -79,9 +79,12 @@ def _extract_image_part(response) -> tuple[bytes, str]:
     )
 
 
+MAX_INPUT_IMAGES = 5
+
+
 def generate_images(
-    *,
-    image_bytes: bytes,
+    *,  
+    images_bytes: list[bytes],
     prompt: str,
     num_images: int,
     api_key: str,
@@ -91,16 +94,19 @@ def generate_images(
         raise GeminiServiceError("GEMINI_API_KEY is missing. Put it in .env or your environment.")
     if not model:
         raise GeminiServiceError("GEMINI_MODEL is missing (suggested: gemini-2.5-flash-image).")
+    if not images_bytes:
+        raise GeminiServiceError("At least one input image is required.")
 
     try:
         from google import genai
         from google.genai import types
 
-        input_mime = _detect_mime_type(image_bytes)
-        if input_mime == "application/octet-stream":
-            raise GeminiServiceError("Unsupported input image format")
-
-        input_part = types.Part.from_bytes(data=image_bytes, mime_type=input_mime)
+        input_parts: list[types.Part] = []
+        for image_bytes in images_bytes:
+            input_mime = _detect_mime_type(image_bytes)
+            if input_mime == "application/octet-stream":
+                raise GeminiServiceError("Unsupported input image format")
+            input_parts.append(types.Part.from_bytes(data=image_bytes, mime_type=input_mime))
 
         def _generate_one(image_idx: int) -> bytes:
             # Keep a per-thread client to avoid cross-thread SDK state issues.
@@ -110,7 +116,7 @@ def generate_images(
                 try:
                     resp = client.models.generate_content(
                         model=model,
-                        contents=[input_part, prompt],
+                        contents=[*input_parts, prompt],
                         config=types.GenerateContentConfig(
                             response_modalities=["IMAGE"],
                         ),
@@ -151,13 +157,14 @@ def generate_images(
 
 def edit_images_azure(
     *,
-    image_bytes: bytes,
+    images_bytes: list[bytes],
     prompt: str,
     num_images: int,
     endpoint: str,
     api_key: str,
     api_version: str,
     model: str,
+    speed_mode: str,
 ) -> Sequence[bytes]:
     if not endpoint:
         raise AzureImageServiceError("AZURE_OPENAI_ENDPOINT is missing. Put it in .env or your environment.")
@@ -167,15 +174,19 @@ def edit_images_azure(
         raise AzureImageServiceError("AZURE_OPENAI_API_VERSION is missing (example: 2025-04-01-preview).")
     if not model:
         raise AzureImageServiceError("AZURE_OPENAI_IMAGE_MODEL is missing (example: gpt-image-1.5).")
+    if not images_bytes:
+        raise AzureImageServiceError("At least one input image is required.")
 
     try:
         from openai import AzureOpenAI  # type: ignore
     except Exception as e:
         raise AzureImageServiceError("Python package 'openai' is not installed in backend env.") from e
 
-    # The SDK expects file-like objects. Ensure the bytes have a filename.
+    # The SDK expects file-like objects with a filename on each stream.
     class _NamedBytes(io.BytesIO):
-        name = "input.png"
+        def __init__(self, data: bytes, filename: str):
+            super().__init__(data)
+            self.name = filename
 
     def _run_once() -> Sequence[bytes]:
         client = AzureOpenAI(
@@ -183,15 +194,24 @@ def edit_images_azure(
             api_key=api_key,
             api_version=api_version,
         )
-        f = _NamedBytes(image_bytes)
+        file_handles: list[_NamedBytes] = [
+            _NamedBytes(raw, f"input_{i}.png") for i, raw in enumerate(images_bytes)
+        ]
+        image_arg: object = file_handles[0] if len(file_handles) == 1 else file_handles
         # Azure image edit returns base64 JSON strings in b64_json
+        request_kwargs: dict[str, object] = {
+            "model": model,
+            "image": image_arg,
+            "prompt": prompt,
+            "n": num_images,
+        }
+        # Fast mode avoids heavy quality knobs for better latency.
+        if speed_mode == "quality":
+            request_kwargs["quality"] = "high"
+            request_kwargs["input_fidelity"] = "high"
+
         resp = client.images.edit(
-            model=model,
-            image=[f],
-            prompt=prompt,
-            n=num_images,
-            quality="high",
-            input_fidelity="high",
+            **request_kwargs,
         )
         out: list[bytes] = []
         for item in getattr(resp, "data", []) or []:
@@ -206,7 +226,12 @@ def edit_images_azure(
     start = time.perf_counter()
     try:
         out = _run_once()
-        logger.info("Azure image edit returned %d image(s) in %dms", len(out), int((time.perf_counter() - start) * 1000))
+        logger.info(
+            "Azure image edit (%s mode) returned %d image(s) in %dms",
+            speed_mode,
+            len(out),
+            int((time.perf_counter() - start) * 1000),
+        )
         # The model already returns PNG bytes for b64_json; keep output as PNG
         return out
     except Exception as e:
@@ -221,7 +246,10 @@ class GenerateResponse(BaseModel):
 
 @app.post("/api/generate", response_model=GenerateResponse)
 async def api_generate(
-    image: UploadFile = File(..., description="Input image from the browser (PNG, JPEG, or WebP)"),
+    images: Annotated[
+        list[UploadFile],
+        File(description="One or more input images (repeat the `images` field in multipart form)"),
+    ],
     prompt: str = Form(..., min_length=1),
     num_images: int = Form(1, ge=1, le=4),
     provider_id: str | None = Form(
@@ -234,12 +262,20 @@ async def api_generate(
     ),
 ) -> GenerateResponse:
     """
-    Accepts the same file the user picked in the UI (`multipart/form-data`),
-    runs Gemini image generation, returns PNGs as base64 for display or download.
+    Accepts one or more images from the UI (`multipart/form-data`, field name `images`),
+    runs Gemini or Azure image generation, returns PNGs as base64 for display or download.
     """
-    raw = await image.read()
-    if not raw:
-        raise HTTPException(status_code=400, detail="Empty file upload.")
+    if not images:
+        raise HTTPException(status_code=400, detail="At least one image is required.")
+
+    capped = images[:MAX_INPUT_IMAGES]
+    raws: list[bytes] = []
+    for uf in capped:
+        data = await uf.read()
+        if data:
+            raws.append(data)
+    if not raws:
+        raise HTTPException(status_code=400, detail="All uploaded image files were empty.")
 
     requested = (provider_id or "").strip()
     try:
@@ -248,22 +284,26 @@ async def api_generate(
             api_key = (os.getenv("AZURE_OPENAI_API_KEY") or "").strip().strip('"')
             api_version = (os.getenv("AZURE_OPENAI_API_VERSION") or "").strip().strip('"')
             az_model = (os.getenv("AZURE_OPENAI_IMAGE_MODEL") or "gpt-image-1.5").strip().strip('"')
+            speed_mode = (os.getenv("AZURE_OPENAI_IMAGE_SPEED_MODE") or "fast").strip().strip('"').lower()
+            if speed_mode not in {"fast", "quality"}:
+                speed_mode = "fast"
             pngs = await asyncio.to_thread(
                 edit_images_azure,
-                image_bytes=raw,
+                images_bytes=raws,
                 prompt=prompt.strip(),
                 num_images=num_images,
                 endpoint=endpoint,
                 api_key=api_key,
                 api_version=api_version,
                 model=az_model,
+                speed_mode=speed_mode,
             )
         else:
             api_key = (os.getenv("GEMINI_API_KEY") or "").strip().strip('"')
             resolved_model = (model or os.getenv("GEMINI_MODEL") or "gemini-2.5-flash-image").strip().strip('"')
             pngs = await asyncio.to_thread(
                 generate_images,
-                image_bytes=raw,
+                images_bytes=raws,
                 prompt=prompt.strip(),
                 num_images=num_images,
                 api_key=api_key,

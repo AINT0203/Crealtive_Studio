@@ -187,22 +187,34 @@ export function History() {
           </h1>
         
         </div>
-        <div className="flex shrink-0 items-center gap-2 self-start rounded-full border border-[#7a0f33]/35 bg-[#7a0f33]/10 px-3 py-1.5 text-xs font-semibold text-[#7a0f33]">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-pulse rounded-full bg-[#7a0f33]/75 opacity-70" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-[#7a0f33]" />
-          </span>
-          Live Session
-        </div>
+        <button
+          type="button"
+          onClick={() =>
+            selectedProjectId
+              ? navigate(`/editor?projectId=${encodeURIComponent(selectedProjectId)}`)
+              : navigate('/editor')
+          }
+          className="studio-focus-ring shrink-0 self-start rounded-lg border border-[#7a0f33]/35 bg-[#7a0f33]/14 px-4 py-2 text-sm font-bold text-[#7a0f33] shadow-sm transition hover:bg-[#7a0f33]/18"
+        >
+          New Session
+        </button>
       </header>
 
       {sorted.length === 0 ? (
         <EmptyState
           icon="📜"
-          title="No sessions yet"
-          subtitle="Generate images in the Editor — successful runs appear here automatically."
+          title={selectedProject ? 'No sessions for this project yet' : 'No sessions yet'}
+          subtitle={
+            selectedProject
+              ? 'Run a generation from the Editor with this project selected — successful runs show up here.'
+              : 'Generate images in the Editor — successful runs appear here automatically.'
+          }
           ctaLabel="Open Editor"
-          onCta={() => navigate('/editor')}
+          onCta={() =>
+            selectedProjectId
+              ? navigate(`/editor?projectId=${encodeURIComponent(selectedProjectId)}`)
+              : navigate('/editor')
+          }
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -349,11 +361,11 @@ export function History() {
         }
       >
         {detail ? (
-          <div className="max-h-[min(70vh,640px)] space-y-4 overflow-y-auto pr-1">
+          <div className="max-h-[min(62vh,520px)] space-y-3 overflow-y-auto pr-1">
             <div className="space-y-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Input Images</div>
               {(detail.sourceImageSrcs && detail.sourceImageSrcs.length > 0) || detail.sourceImageSrc ? (
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {(detail.sourceImageSrcs && detail.sourceImageSrcs.length > 0
                     ? detail.sourceImageSrcs
                     : detail.sourceImageSrc
@@ -362,9 +374,9 @@ export function History() {
                   ).map((src, i) => (
                     <div
                       key={`${detail.id}-input-${i}`}
-                      className="w-full overflow-hidden rounded-xl border border-studio-border bg-studio-bg"
+                      className="w-full overflow-hidden rounded-lg border border-studio-border bg-studio-bg"
                     >
-                      <img src={src} alt={`Input ${i + 1}`} className="h-52 w-full object-contain" />
+                      <img src={src} alt={`Input ${i + 1}`} className="h-36 w-full object-contain" />
                     </div>
                   ))}
                 </div>
@@ -377,20 +389,20 @@ export function History() {
 
             <div className="space-y-2">
               <div className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Generated Images</div>
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
                 {detail.imageSrcs.map((src, i) => (
                   <div
                     key={`${detail.id}-img-${i}`}
-                    className="overflow-hidden rounded-xl border border-studio-border bg-studio-bg"
+                    className="overflow-hidden rounded-lg border border-studio-border bg-studio-bg"
                   >
-                    <img src={src} alt={`Result ${i + 1}`} className="aspect-square w-full object-cover" />
+                    <img src={src} alt={`Result ${i + 1}`} className="h-36 w-full object-cover" />
                   </div>
                 ))}
               </div>
             </div>
             <div>
               <div className="text-xs font-semibold uppercase tracking-wide text-studio-muted">Prompt</div>
-              <p className="mt-1 rounded-xl border border-studio-border bg-studio-bg p-3 text-sm text-studio-text">
+              <p className="mt-1 rounded-lg border border-studio-border bg-studio-bg p-2.5 text-sm text-studio-text">
                 {detail.prompt}
               </p>
             </div>

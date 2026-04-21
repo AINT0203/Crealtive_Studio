@@ -18,12 +18,12 @@ export function GenerationResultGrid({
 }: {
   results: GeneratedResult[]
   onEdit: (id: string) => void
-  onDownload: (id: string, format: 'jpeg' | 'jpg' | 'png' | 'svg' | 'gif') => void
+  onDownload: (id: string, format: 'jpeg' | 'jpg' | 'png' | 'svg') => void
   onExpand: (id: string) => void
 }) {
   const [downloadMenuForId, setDownloadMenuForId] = useState<string | null>(null)
 
-  function triggerDownload(id: string, format: 'jpeg' | 'jpg' | 'png' | 'svg' | 'gif') {
+  function triggerDownload(id: string, format: 'jpeg' | 'jpg' | 'png' | 'svg') {
     onDownload(id, format)
     setDownloadMenuForId(null)
   }
@@ -35,7 +35,7 @@ export function GenerationResultGrid({
           key={r.id}
           className="studio-card studio-hover-lift relative overflow-hidden"
         >
-          <div className="relative h-[210px] w-full overflow-hidden bg-studio-inset">
+          <div className="relative h-[260px] w-full overflow-hidden bg-studio-inset">
             <img
               src={r.imageSrc}
               alt={r.label}
@@ -60,7 +60,7 @@ export function GenerationResultGrid({
               </button>
               {downloadMenuForId === r.id ? (
                 <div className="absolute bottom-full right-0 z-20 mb-2 w-32 rounded-lg border border-studio-border bg-white p-1 shadow-lg">
-                  {(['jpeg', 'jpg', 'png', 'svg', 'gif'] as const).map((fmt) => (
+                  {(['jpeg', 'jpg', 'png', 'svg'] as const).map((fmt) => (
                     <button
                       key={fmt}
                       type="button"

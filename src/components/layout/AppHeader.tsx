@@ -72,7 +72,7 @@ export function AppHeader({
           <details className="group relative">
             <summary className="studio-focus-ring list-none cursor-pointer rounded-full border border-white/25 bg-white/10 p-1 shadow-[0_10px_30px_rgba(0,0,0,0.35)] backdrop-blur transition hover:bg-white/15">
               <span className="sr-only">Account</span>
-              <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-rose-500/80 via-fuchsia-500/70 to-cyan-400/70 text-xs font-extrabold tracking-wide text-white">
+              <span className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-[#2b0614] via-[#7a0f33] to-[#3a1652] text-xs font-extrabold tracking-wide text-white">
                 OM
               </span>
             </summary>

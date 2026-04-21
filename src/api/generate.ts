@@ -22,7 +22,8 @@ function parseErrorDetail(payload: unknown): string {
 
 export async function requestGenerate(
   input: {
-    image: File
+    /** Sent in list order as repeated `images` multipart fields */
+    images: File[]
     prompt: string
     numImages: number
     modelId: string
@@ -31,7 +32,9 @@ export async function requestGenerate(
   },
 ): Promise<GenerateApiResponse> {
   const fd = new FormData()
-  fd.append('image', input.image)
+  for (const file of input.images) {
+    fd.append('images', file)
+  }
   fd.append('prompt', input.prompt)
   fd.append('num_images', String(input.numImages))
   fd.append('provider_id', input.modelId)

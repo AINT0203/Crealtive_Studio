@@ -18,12 +18,19 @@ function pluralize(count: number, singular: string, plural: string) {
 
 export function Projects() {
   const navigate = useNavigate()
-  const { projects, createProject, deleteProject } = useApp()
+  const { projects, createProject, renameProject, deleteProject } = useApp()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [form, setForm] = useState({ name: '', description: '' })
+  const [renameTarget, setRenameTarget] = useState<null | { id: string; name: string }>(null)
+  const [renameName, setRenameName] = useState('')
   const [deleteTarget, setDeleteTarget] = useState<null | { id: string; name: string }>(null)
 
   const canCreate = useMemo(() => form.name.trim().length >= 2, [form.name])
+  const canRename = useMemo(() => {
+    if (!renameTarget) return false
+    const next = renameName.trim()
+    return next.length >= 2 && next !== renameTarget.name
+  }, [renameName, renameTarget])
 
   function onCreate() {
     if (!canCreate) return
@@ -37,6 +44,13 @@ export function Projects() {
     const { id } = deleteTarget
     setDeleteTarget(null)
     await deleteProject(id)
+  }
+
+  function confirmRenameNow() {
+    if (!renameTarget || !canRename) return
+    renameProject(renameTarget.id, renameName)
+    setRenameTarget(null)
+    setRenameName('')
   }
 
   return (
@@ -121,7 +135,25 @@ export function Projects() {
                         <div className="absolute right-0 z-20 mt-2 w-32 overflow-hidden rounded-xl border border-studio-border bg-white p-1 shadow-lg">
                           <button
                             type="button"
-                            onClick={() => setDeleteTarget({ id: p.id, name: p.name })}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setRenameTarget({ id: p.id, name: p.name })
+                              setRenameName(p.name)
+                              const details = e.currentTarget.closest('details')
+                              details?.removeAttribute('open')
+                            }}
+                            className="studio-focus-ring w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-studio-text hover:bg-studio-secondary/10"
+                          >
+                            Rename
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setDeleteTarget({ id: p.id, name: p.name })
+                              const details = e.currentTarget.closest('details')
+                              details?.removeAttribute('open')
+                            }}
                             className="studio-focus-ring w-full rounded-lg px-3 py-2 text-left text-xs font-semibold text-studio-danger hover:bg-studio-danger/10"
                           >
                             Delete
@@ -217,6 +249,50 @@ export function Projects() {
               rows={4}
               className="studio-focus-ring w-full resize-none rounded-xl border border-studio-border bg-studio-bg px-3 py-2 text-sm text-studio-text placeholder:text-studio-muted/60"
               placeholder="A short description of what this project is for…"
+            />
+          </label>
+        </div>
+      </Modal>
+
+      <Modal
+        open={Boolean(renameTarget)}
+        title="Rename project"
+        onClose={() => {
+          setRenameTarget(null)
+          setRenameName('')
+        }}
+        footer={
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setRenameTarget(null)
+                setRenameName('')
+              }}
+              className="rounded-lg px-3 py-2 text-sm font-semibold text-studio-muted hover:bg-studio-secondary/12 hover:text-studio-text"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!canRename}
+              onClick={confirmRenameNow}
+              className="studio-focus-ring rounded-lg border border-[#7a0f33]/35 bg-[#7a0f33]/14 px-3 py-2 text-sm font-semibold text-[#7a0f33] shadow-sm transition hover:bg-[#7a0f33]/18 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Save
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-2">
+          <label className="block">
+            <div className="mb-1 text-xs font-semibold text-studio-muted">Project Name</div>
+            <input
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              className="studio-focus-ring w-full rounded-xl border border-studio-border bg-studio-bg px-3 py-2 text-sm text-studio-text placeholder:text-studio-muted/60"
+              placeholder="Enter a new project name"
+              autoFocus
             />
           </label>
         </div>
